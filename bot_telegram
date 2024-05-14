@@ -6,7 +6,9 @@ from datetime import datetime, timedelta
 BOT_TOKEN = 'YOUR_TOKEN'
 OPENWEATHERMAP_API_KEY = 'YOUR_API'
 
-UNITS='metric'
+UNITS = 'metric'
+LANGUAGE = 'en'  # Default language is English
+
 def get_weather(city):
     """Retrieve weather data for a specific city."""
     unit_symbol = '°C' if UNITS == 'metric' else '°F'
@@ -20,22 +22,38 @@ def get_weather(city):
         feels_like = round(data['main']['feels_like'], 1)
         humidity = data['main']['humidity']
 
-        message = f"""
-**Weather for {city}**
+        if LANGUAGE == 'en':
+            message = f"""
+Weather for {city}
 
-* Conditions: {weather}
-* Temperature: {temperature}{unit_symbol} (feels like: {feels_like}{unit_symbol})
-* Humidity: {humidity}%
-        """
+Conditions: {weather}
+Temperature: {temperature}{unit_symbol} (feels like: {feels_like}{unit_symbol})
+Humidity: {humidity}%
+            """
+        elif LANGUAGE == 'it':
+            message = f"""
+Meteo per {city}
+
+Condizioni: {weather}
+Temperatura: {temperature}{unit_symbol} (percepita come: {feels_like}{unit_symbol})
+Umidità: {humidity}%
+            """
+        elif LANGUAGE == 'es':
+            message = f"""
+Clima para {city}
+
+Condiciones: {weather}
+Temperatura: {temperature}{unit_symbol} (se siente como: {feels_like}{unit_symbol})
+Humedad: {humidity}%
+            """
         return message
     else:
         return f"City not found: {city}"
 
-
-def get_forecast(city, units):
+def get_forecast(city):
     """Retrieve weather forecast for the next 5 days."""
-    unit_symbol = '°C' if units == 'metric' else '°F'
-    url = f'https://api.openweathermap.org/data/2.5/forecast?q={city}&appid={OPENWEATHERMAP_API_KEY}&units={units}'
+    unit_symbol = '°C' if UNITS == 'metric' else '°F'
+    url = f'https://api.openweathermap.org/data/2.5/forecast?q={city}&appid={OPENWEATHERMAP_API_KEY}&units={UNITS}'
     response = requests.get(url)
     data = response.json()
 
@@ -52,30 +70,44 @@ def get_forecast(city, units):
                 'temperature': round(item['main']['temp'], 1)
             })
 
-        message = f"**Weather forecast for the next 5 days in {city}:**\n\n"
-        for day, data in forecast.items():
-            message += f"**{day}**\n"
-            for item in data:
-                message += f"- {item['time']}: {item['weather']}, {item['temperature']}{unit_symbol}\n"
-            message += "\n"
+        if LANGUAGE == 'en':
+            message = f"Weather forecast for the next 5 days in {city}:\n\n"
+            for day, data in forecast.items():
+                message += f"{day}\n"
+                for item in data:
+                    message += f"- {item['time']}: {item['weather']}, {item['temperature']}{unit_symbol}\n"
+                message += "\n"
+        elif LANGUAGE == 'it':
+            message = f"Previsioni del tempo per i prossimi 5 giorni a {city}:\n\n"
+            for day, data in forecast.items():
+                message += f"{day}\n"
+                for item in data:
+                    message += f"- {item['time']}: {item['weather']}, {item['temperature']}{unit_symbol}\n"
+                message += "\n"
+        elif LANGUAGE == 'es':
+            message = f"Pronóstico del tiempo para los próximos 5 días en {city}:\n\n"
+            for day, data in forecast.items():
+                message += f"{day}\n"
+                for item in data:
+                    message += f"- {item['time']}: {item['weather']}, {item['temperature']}{unit_symbol}\n"
+                message += "\n"
 
         return message
     else:
         return f"City not found: {city}"
-
 
 def handle_command(message):
     """Handle commands received by the bot."""
     text = message.text.lower()
 
     if text.startswith('/start'):
-        bot.reply_to(message, 'Welcome to the weather bot! Send the name of a city to get the weather forecast.')
+        bot.reply_to(message, get_start_message())
     elif text.startswith('/meteo'):
-        bot.reply_to(message, 'For which city do you want the weather?')
+        bot.reply_to(message, get_weather_prompt())
         # Setting state to 'waiting_for_city' to handle subsequent message
         bot.register_next_step_handler(message, get_weather_for_city)
     elif text.startswith('/previsioni'):
-        bot.reply_to(message, 'For which city do you want the weather forecast?')
+        bot.reply_to(message, get_forecast_prompt())
         # Setting state to 'waiting_for_city' to handle subsequent message
         bot.register_next_step_handler(message, get_forecast_for_city)
     elif text.startswith('/deletewebhook'):
@@ -89,55 +121,157 @@ def handle_command(message):
             error_message = response.json().get('description', 'An error occurred while deleting the webhook.')
             bot.reply_to(message, error_message)
     elif text.startswith('/help'):
-        commands = [
-            "/start - Start the bot",
-            "/meteo - Get current weather forecast after specifying the city",
-            "/previsioni - Get the weather forecast for the next 5 days after specifying the city",
-            "/deletewebhook - Delete the webhook (if active)",
-            "/help - Show the list of available commands"
-        ]
-        bot.reply_to(message, "\n".join(commands))
+        bot.reply_to(message, get_help_message())
     elif text.startswith('/unit'):
         # Provide options for choosing units
-        options = ["Metric", "Imperial"]
-        reply_markup = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True)
-        reply_markup.add(*options)
-        bot.reply_to(message, "Choose unit system:", reply_markup=reply_markup)
+        bot.reply_to(message, get_unit_prompt())
         bot.register_next_step_handler(message, process_unit_choice)
+    elif text.startswith('/language'):
+        # Provide options for choosing language
+        bot.reply_to(message, get_language_prompt())
+        bot.register_next_step_handler(message, process_language_choice)
     else:
-        bot.reply_to(message, 'Command not recognized. Try /start, /meteo <city>, /previsioni <city>, /deletewebhook, or /help to see the list of commands.')
+        bot.reply_to(message, get_default_message())
 
+def get_start_message():
+    if LANGUAGE == 'en':
+        return 'Welcome to the weather bot! Send the name of a city to get the weather forecast.'
+    elif LANGUAGE == 'it':
+        return 'Benvenuto nel bot del meteo! Invia il nome di una città per ottenere le previsioni del tempo.'
+    elif LANGUAGE == 'es':
+        return '¡Bienvenido al bot del clima! Envía el nombre de una ciudad para obtener el pronóstico del tiempo.'
+
+def get_weather_prompt():
+    if LANGUAGE == 'en':
+        return 'For which city do you want the weather?'
+    elif LANGUAGE == 'it':
+        return 'Per quale città desideri le previsioni del tempo?'
+    elif LANGUAGE == 'es':
+        return '¿Para qué ciudad quieres el pronóstico del tiempo?'
+
+def get_forecast_prompt():
+    if LANGUAGE == 'en':
+        return 'For which city do you want the weather forecast?'
+    elif LANGUAGE == 'it':
+        return 'Per quale città desideri le previsioni del tempo?'
+    elif LANGUAGE == 'es':
+        return '¿Para qué ciudad quieres el pronóstico del tiempo?'
+
+def get_help_message():
+    if LANGUAGE == 'en':
+        return "/start - Start the bot\n/meteo - Get current weather forecast after specifying the city\n/previsioni - Get the weather forecast for the next 5 days after specifying the city\n/deletewebhook - Delete the webhook (if active)\n/help - Show the list of available commands"
+    elif LANGUAGE == 'it':
+        return "/start - Avvia il bot\n/meteo - Ottieni le previsioni del tempo correnti dopo aver specificato la città\n/previsioni - Ottieni le previsioni del tempo per i prossimi 5 giorni dopo aver specificato la città\n/deletewebhook - Elimina il webhook (se attivo)\n/help - Mostra l'elenco dei comandi disponibili"
+    elif LANGUAGE == 'es':
+        return "/start - Inicia el bot\n/meteo - Obtén el pronóstico del tiempo actual después de especificar la ciudad\n/previsioni - Obtén el pronóstico del tiempo para los próximos 5 días después de especificar la ciudad\n/deletewebhook - Elimina el webhook (si está activo)\n/help - Muestra la lista de comandos disponibles"
+
+def get_unit_prompt():
+    if LANGUAGE == 'en':
+        return "Choose unit system:"
+    elif LANGUAGE == 'it':
+        return "Scegli il sistema di unità:"
+    elif LANGUAGE == 'es':
+        return "Elige el sistema de unidades:"
+
+def get_language_prompt():
+    if LANGUAGE == 'en':
+        return "Choose your language:"
+    elif LANGUAGE == 'it':
+        return "Scegli la tua lingua:"
+    elif LANGUAGE == 'es':
+        return "Elige tu idioma:"
+
+def get_default_message():
+    if LANGUAGE == 'en':
+        return 'Command not recognized. Try /start, /meteo <city>, /previsioni <city>, /deletewebhook, /language, or /help to see the list of commands.'
+    elif LANGUAGE == 'it':
+        return "Comando non riconosciuto. Prova /start, /meteo <città>, /previsioni <città>, /deletewebhook, /language o /help per vedere l'elenco dei comandi."
+    elif LANGUAGE == 'es':
+        return "Comando no reconocido. Prueba /start, /meteo <ciudad>, /previsioni <ciudad>, /deletewebhook, /language o /help para ver la lista de comandos."
 
 def process_unit_choice(message):
     global UNITS
     unit_choice = message.text.lower()
     if unit_choice == "metric":
-        bot.reply_to(message, "You've chosen Metric units.")
+        bot.reply_to(message, get_metric_unit_message())
         UNITS='metric'
     elif unit_choice == "imperial":
-        bot.reply_to(message, "You've chosen Imperial units.")
+        bot.reply_to(message, get_imperial_unit_message())
         UNITS='imperial'
     else:
-        bot.reply_to(message, "Invalid choice. Please select either Metric or Imperial.")
-    # Store user's unit preference in database or somewhere
+        bot.reply_to(message, get_invalid_unit_message())
 
+def get_metric_unit_message():
+    if LANGUAGE == 'en':
+        return "You've chosen Metric units."
+    elif LANGUAGE == 'it':
+        return "Hai scelto le unità metriche."
+    elif LANGUAGE == 'es':
+        return "Has elegido unidades métricas."
+
+def get_imperial_unit_message():
+    if LANGUAGE == 'en':
+        return "You've chosen Imperial units."
+    elif LANGUAGE == 'it':
+        return "Hai scelto le unità imperiali."
+    elif LANGUAGE == 'es':
+        return "Has elegido unidades imperiales."
+
+def get_invalid_unit_message():
+    if LANGUAGE == 'en':
+        return "Invalid choice. Please select either Metric or Imperial."
+    elif LANGUAGE == 'it':
+        return "Scelta non valida. Si prega di selezionare Metrico o Imperiale."
+    elif LANGUAGE == 'es':
+        return "Opción no válida. Por favor, seleccione Métrico o Imperial."
+
+def process_language_choice(message):
+    global LANGUAGE
+    language_choice = message.text.lower()
+    if language_choice == "english":
+        bot.reply_to(message, get_english_language_message())
+        LANGUAGE = 'en'
+    elif language_choice == "italian":
+        bot.reply_to(message, get_italian_language_message())
+        LANGUAGE = 'it'
+    elif language_choice == "spanish":
+        bot.reply_to(message, get_spanish_language_message())
+        LANGUAGE = 'es'
+    else:
+        bot.reply_to(message, get_invalid_language_message())
+
+def get_english_language_message():
+    return "You've chosen English language."
+
+def get_italian_language_message():
+    return "Hai scelto la lingua italiana."
+
+def get_spanish_language_message():
+    return "Has elegido el idioma español."
+
+def get_invalid_language_message():
+    if LANGUAGE == 'en':
+        return "Invalid choice. Please select either English, Italian, or Spanish."
+    elif LANGUAGE == 'it':
+        return "Scelta non valida. Si prega di selezionare Inglese, Italiano o Spagnolo."
+    elif LANGUAGE == 'es':
+        return "Opción no válida. Por favor, seleccione Inglés, Italiano o Español."
 
 def get_weather_for_city(message):
     city = message.text
-    # Default to metric if not set
     weather_message = get_weather(city)
     bot.reply_to(message, weather_message)
 
-
 def get_forecast_for_city(message):
     city = message.text
-    # Default to metric if not set
     forecast_message = get_forecast(city)
     bot.reply_to(message, forecast_message)
-
 
 bot = telebot.TeleBot(BOT_TOKEN)
 bot.set_webhook()
 bot.register_message_handler(handle_command)
 
 bot.polling()
+
+
+#esistono libreria per la traduzione automatica dei messaggi ma sono a pagamento
