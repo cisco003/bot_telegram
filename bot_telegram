@@ -1,9 +1,11 @@
 import telebot
 import requests
-from datetime import datetime
+from datetime import datetime, timedelta
 
-BOT_TOKEN = 'TOKEN_DEL_BOT'
-OPENWEATHERMAP_API_KEY = 'API_KEY_OPENWEATHERMAP'
+# Insert your bot token and OpenWeatherMap API key here
+BOT_TOKEN = 'YOUR_TOKEN'
+OPENWEATHERMAP_API_KEY = 'YOUR_API'
+
 
 def get_weather(city):
     """Retrieve weather data for a specific city."""
@@ -18,7 +20,7 @@ def get_weather(city):
         humidity = data['main']['humidity']
 
         message = f"""
-Weather for {city}
+**Weather for {city}**
 
 * Conditions: {weather}
 * Temperature: {temperature}°C (feels like: {feels_like}°C)
@@ -27,6 +29,7 @@ Weather for {city}
         return message
     else:
         return f"City not found: {city}"
+
 
 def get_forecast(city):
     """Retrieve weather forecast for the next 5 days."""
@@ -47,9 +50,9 @@ def get_forecast(city):
                 'temperature': round(item['main']['temp'], 1)
             })
 
-        message = f"Weather forecast for the next 5 days in {city}:\n\n"
+        message = f"**Weather forecast for the next 5 days in {city}:**\n\n"
         for day, data in forecast.items():
-            message += f"{day}\n"
+            message += f"**{day}**\n"
             for item in data:
                 message += f"- {item['time']}: {item['weather']}, {item['temperature']}°C\n"
             message += "\n"
@@ -58,6 +61,7 @@ def get_forecast(city):
     else:
         return f"City not found: {city}"
 
+
 def handle_command(message):
     """Handle commands received by the bot."""
     text = message.text.lower()
@@ -65,25 +69,15 @@ def handle_command(message):
     if text.startswith('/start'):
         bot.reply_to(message, 'Welcome to the weather bot! Send the name of a city to get the weather forecast.')
     elif text.startswith('/meteo'):
-        city = text[6:].strip()
-        if city:
-            weather_message = get_weather(city)
-            bot.reply_to(message, weather_message)
-        else:
-            bot.reply_to(message, 'Please specify the name of the city. For example: /meteo Milan')
+        bot.reply_to(message, 'For which city do you want the weather?')
+        # Setting state to 'waiting_for_city' to handle subsequent message
+        bot.register_next_step_handler(message, get_weather_for_city)
     elif text.startswith('/previsioni'):
-        city = text[12:].strip()
-        if city:
-            forecast_message = get_forecast(city)
-            bot.reply_to(message, forecast_message)
-        else:
-            bot.reply_to(message, 'Please specify the name of the city. For example: /previsioni Milan')
-    elif message.location:
-        latitude = message.location.latitude
-        longitude = message.location.longitude
-        weather_message = get_weather_by_location(latitude, longitude)
-        bot.reply_to(message, weather_message)
+        bot.reply_to(message, 'For which city do you want the weather forecast?')
+        # Setting state to 'waiting_for_city' to handle subsequent message
+        bot.register_next_step_handler(message, get_forecast_for_city)
     elif text.startswith('/deletewebhook'):
+        # Delete the webhook using the Telegram API
         delete_webhook_url = f'https://api.telegram.org/bot{BOT_TOKEN}/deleteWebhook'
         response = requests.post(delete_webhook_url)
 
@@ -95,8 +89,8 @@ def handle_command(message):
     elif text.startswith('/help'):
         commands = [
             "/start - Start the bot",
-            "/meteo <city> - Get current weather forecast for a specific city",
-            "/previsioni <city> - Get the weather forecast for the next 5 days for a specific city",
+            "/meteo - Get current weather forecast after specifying the city",
+            "/previsioni - Get the weather forecast for the next 5 days after specifying the city",
             "/deletewebhook - Delete the webhook (if active)",
             "/help - Show the list of available commands"
         ]
@@ -104,29 +98,18 @@ def handle_command(message):
     else:
         bot.reply_to(message, 'Command not recognized. Try /start, /meteo <city>, /previsioni <city>, /deletewebhook, or /help to see the list of commands.')
 
-def get_weather_by_location(latitude, longitude):
-    """Retrieve weather data based on latitude and longitude."""
-    url = f'https://api.openweathermap.org/data/2.5/weather?lat={latitude}&lon={longitude}&appid={OPENWEATHERMAP_API_KEY}&units=metric'
-    response = requests.get(url)
-    data = response.json()
 
-    if data['cod'] != '404':
-        city = data['name']
-        weather = data['weather'][0]['description']
-        temperature = round(data['main']['temp'], 1)
-        feels_like = round(data['main']['feels_like'], 1)
-        humidity = data['main']['humidity']
+def get_weather_for_city(message):
+    city = message.text
+    weather_message = get_weather(city)
+    bot.reply_to(message, weather_message)
 
-        message = f"""
-Weather for {city}
 
-* Conditions: {weather}
-* Temperature: {temperature}°C (feels like: {feels_like}°C)
-* Humidity: {humidity}%
-        """
-        return message
-    else:
-        return f"City not found for the provided coordinates."
+def get_forecast_for_city(message):
+    city = message.text
+    forecast_message = get_forecast(city)
+    bot.reply_to(message, forecast_message)
+
 
 bot = telebot.TeleBot(BOT_TOKEN)
 bot.set_webhook()
