@@ -1,0 +1,73 @@
+import telebot
+import requests
+from datetime import datetime
+
+BOT_TOKEN = 'YOUR_TOKEN'
+OPENWEATHERMAP_API_KEY = 'YOUR_API'
+
+def get_weather(city):
+    """Retrieve weather data for a specific city."""
+    url = f'https://api.openweathermap.org/data/2.5/weather?q={city}&appid={OPENWEATHERMAP_API_KEY}&units=metric'
+    response = requests.get(url)
+    data = response.json()
+
+    if data['cod'] != '404':
+        weather = data['weather'][0]['description']
+        temperature = round(data['main']['temp'], 1)
+        feels_like = round(data['main']['feels_like'], 1)
+        humidity = data['main']['humidity']
+
+        message = f"""
+Weather for {city}
+
+* Conditions: {weather}
+* Temperature: {temperature}°C (feels like: {feels_like}°C)
+* Humidity: {humidity}%
+        """
+        return message
+    else:
+        return f"City not found: {city}"
+
+def handle_command(message):
+    """Handle commands received by the bot."""
+    text = message.text.lower()
+
+    if text.startswith('/start'):
+        markup = telebot.types.ReplyKeyboardMarkup(row_width=1, one_time_keyboard=True)
+        location_button = telebot.types.KeyboardButton('Share My Location', request_location=True)
+        markup.add(location_button)
+        bot.reply_to(message, 'Welcome to the weather bot! Please share your location to get the weather forecast.', reply_markup=markup)
+    elif text.startswith('/meteo'):
+        city = text[6:].strip()
+        if city:
+            weather_message = get_weather(city)
+            bot.reply_to(message, weather_message)
+        else:
+            bot.reply_to(message, 'Please specify the name of the city. For example: /meteo Milan')
+    elif text == 'share my location':
+        bot.reply_to(message, 'Please share your location to get the weather forecast.')
+    elif text.startswith('/deletewebhook'):
+        delete_webhook_url = f'https://api.telegram.org/bot{BOT_TOKEN}/deleteWebhook'
+        response = requests.post(delete_webhook_url)
+
+        if response.json().get('ok'):
+            bot.reply_to(message, 'Webhook deleted successfully!')
+        else:
+            error_message = response.json().get('description', 'An error occurred while deleting the webhook.')
+            bot.reply_to(message, error_message)
+    elif text.startswith('/help'):
+        commands = [
+            "/start - Start the bot",
+            "/meteo <city> - Get current weather forecast for a specific city",
+            "/deletewebhook - Delete the webhook (if active)",
+            "/help - Show the list of available commands"
+        ]
+        bot.reply_to(message, "\n".join(commands))
+    else:
+        bot.reply_to(message, 'Command not recognized. Try /start, /meteo <city>, /deletewebhook, or /help to see the list of commands.')
+
+bot = telebot.TeleBot(BOT_TOKEN)
+bot.set_webhook()
+bot.register_message_handler(handle_command)
+
+bot.polling()
