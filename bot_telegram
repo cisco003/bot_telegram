@@ -2,7 +2,6 @@ import telebot
 import requests
 from datetime import datetime
 from geopy.geocoders import Nominatim
-import matplotlib.pyplot as plt
 
 # Insert your bot token and OpenWeatherMap API key here
 BOT_TOKEN = 'YOUR_TOKEN'
@@ -11,7 +10,6 @@ OPENWEATHERMAP_API_KEY = 'YOUR_API'
 UNITS = 'metric'
 LANGUAGE = 'en'  # Default language is English
 
-import matplotlib.pyplot as plt
 
 def get_weather(city):
     unit_symbol = '°C' if UNITS == 'metric' else '°F'
@@ -132,8 +130,6 @@ def get_forecast(city):
     else:
         return f"City not found: {city}"
 
-
-
 def handle_command(message):
     """Handle commands received by the bot."""
     text = message.text.lower()
@@ -168,16 +164,22 @@ def handle_command(message):
         # Provide options for choosing language
         bot.reply_to(message, get_language_prompt())
         bot.register_next_step_handler(message, process_language_choice)
+    elif 'grazie' in text:
+        bot.reply_to(message, "Prego!")
     else:
         bot.reply_to(message, get_default_message())
 
+
 def get_start_message():
     if LANGUAGE == 'en':
-        return 'Welcome to the weather bot! Send the name of a city to get the weather forecast.'
+        return "**Benvenuto nel bot del meteo!** Per ottenere le previsioni del tempo di una città, scrivi /help o usa i comandi disponibili."
     elif LANGUAGE == 'it':
-        return 'Benvenuto nel bot del meteo! Invia il nome di una città per ottenere le previsioni del tempo.'
+        return "**Benvenuto nel bot del meteo!** Per ottenere le previsioni del tempo di una città, scrivi /help o usa i comandi disponibili."
     elif LANGUAGE == 'es':
-        return '¡Bienvenido al bot del clima! Envía el nombre de una ciudad para obtener el pronóstico del tiempo.'
+        return "**¡Bienvenido al bot del clima!** Para obtener el pronóstico del tiempo de una ciudad, escribe /help o usa los comandos disponibles."
+    else:
+        return "**Welcome to the weather bot!** To get the weather forecast for a city, type /help or use the available commands."
+
 
 def get_weather_prompt():
     if LANGUAGE == 'en':
@@ -196,12 +198,37 @@ def get_forecast_prompt():
         return '¿Para qué ciudad quieres el pronóstico del tiempo?'
 
 def get_help_message():
+    """Provides a list of all available commands and their descriptions."""
     if LANGUAGE == 'en':
-        return "/start - Start the bot\n/meteo - Get current weather forecast after specifying the city\n/previsioni - Get the weather forecast for the next 5 days after specifying the city\n/deletewebhook - Delete the webhook (if active)\n/help - Show the list of available commands"
+        return (
+            "/start - Starts the bot\n"
+            "/meteo <city> - Get current weather forecast for a city\n"
+            "/previsioni <city, or coordinates> - Get the weather forecast for the next 5 days for a city\n"
+            "/deletewebhook - Delete the webhook (if active)\n"
+            "/help - Show this list of available commands\n"
+            "/unit - Choose between Metric or Imperial units\n"
+            "/language - Select your preferred language (English, Italian, Spanish)"
+        )
     elif LANGUAGE == 'it':
-        return "/start - Avvia il bot\n/meteo - Ottieni le previsioni del tempo correnti dopo aver specificato la città\n/previsioni - Ottieni le previsioni del tempo per i prossimi 5 giorni dopo aver specificato la città\n/deletewebhook - Elimina il webhook (se attivo)\n/help - Mostra l'elenco dei comandi disponibili"
+        return (
+            "/start - Avvia il bot\n"
+            "/meteo <città> - Ottieni le previsioni del tempo correnti per una città\n"
+            "/previsioni <città, o coordinate> - Ottieni le previsioni del tempo per i prossimi 5 giorni per una città\n"
+            "/deletewebhook - Elimina il webhook (se attivo)\n"
+            "/help - Mostra questa lista di comandi disponibili\n"
+            "/unit - Scegli tra unità metriche o imperiali\n"
+            "/language - Seleziona la tua lingua preferita (Inglese, Italiano, Spagnolo)"
+        )
     elif LANGUAGE == 'es':
-        return "/start - Inicia el bot\n/meteo - Obtén el pronóstico del tiempo actual después de especificar la ciudad\n/previsioni - Obtén el pronóstico del tiempo para los próximos 5 días después de especificar la ciudad\n/deletewebhook - Elimina el webhook (si está activo)\n/help - Muestra la lista de comandos disponibles"
+        return (
+            "/start - Inicia el bot\n"
+            "/meteo <ciudad> - Obtén el pronóstico del tiempo actual para una ciudad\n"
+            "/previsioni <ciudad, o coordenadas> - Obtén el pronóstico del tiempo para los próximos 5 días para una ciudad\n"
+            "/deletewebhook - Elimina el webhook (si está activo)\n"
+            "/help - Muestra esta lista de comandos disponibles\n"
+            "/unit - Elige entre unidades métricas o imperiales\n"
+            "/language - Selecciona tu idioma preferido (Inglés, Italiano, Español)"
+        )
 
 def get_unit_prompt():
     if LANGUAGE == 'en':
