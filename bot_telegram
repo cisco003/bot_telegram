@@ -1,6 +1,8 @@
 import telebot
 import requests
-from datetime import datetime, timedelta
+from datetime import datetime
+from geopy.geocoders import Nominatim
+import matplotlib.pyplot as plt
 
 # Insert your bot token and OpenWeatherMap API key here
 BOT_TOKEN = 'YOUR_TOKEN'
@@ -9,8 +11,9 @@ OPENWEATHERMAP_API_KEY = 'YOUR_API'
 UNITS = 'metric'
 LANGUAGE = 'en'  # Default language is English
 
+import matplotlib.pyplot as plt
+
 def get_weather(city):
-    """Retrieve weather data for a specific city."""
     unit_symbol = '°C' if UNITS == 'metric' else '°F'
     url = f'https://api.openweathermap.org/data/2.5/weather?q={city}&appid={OPENWEATHERMAP_API_KEY}&units={UNITS}'
     response = requests.get(url)
@@ -22,11 +25,14 @@ def get_weather(city):
         feels_like = round(data['main']['feels_like'], 1)
         humidity = data['main']['humidity']
 
+        # Emoji representation of weather conditions
+        weather_emoji = "☀️" if "clear" in weather else "🌤️" if "clouds" in weather else "🌧️" if "rain" in weather else "❄️" if "snow" in weather else "🌫️" if "mist" in weather else "🤷‍♂️"
+
         if LANGUAGE == 'en':
             message = f"""
 Weather for {city}
 
-Conditions: {weather}
+Conditions: {weather} {weather_emoji}
 Temperature: {temperature}{unit_symbol} (feels like: {feels_like}{unit_symbol})
 Humidity: {humidity}%
             """
@@ -34,7 +40,7 @@ Humidity: {humidity}%
             message = f"""
 Meteo per {city}
 
-Condizioni: {weather}
+Condizioni: {weather} {weather_emoji}
 Temperatura: {temperature}{unit_symbol} (percepita come: {feels_like}{unit_symbol})
 Umidità: {humidity}%
             """
@@ -42,13 +48,15 @@ Umidità: {humidity}%
             message = f"""
 Clima para {city}
 
-Condiciones: {weather}
+Condiciones: {weather} {weather_emoji}
 Temperatura: {temperature}{unit_symbol} (se siente como: {feels_like}{unit_symbol})
 Humedad: {humidity}%
             """
         return message
     else:
         return f"City not found: {city}"
+
+
 
 def get_forecast(city):
     """Retrieve weather forecast for the next 5 days."""
@@ -70,31 +78,61 @@ def get_forecast(city):
                 'temperature': round(item['main']['temp'], 1)
             })
 
+        # Emoji representation of weather conditions
+        weather_emojis = {
+            "clear": "☀️",
+            "clouds": "🌥️",
+            "rain": "🌧️",
+            "thunderstorm": "⛈️",
+            "snow": "❄️",
+            "mist": "🌫️"
+        }
+
         if LANGUAGE == 'en':
             message = f"Weather forecast for the next 5 days in {city}:\n\n"
             for day, data in forecast.items():
                 message += f"{day}\n"
                 for item in data:
-                    message += f"- {item['time']}: {item['weather']}, {item['temperature']}{unit_symbol}\n"
+                    weather = item['weather'].lower()
+                    weather_emoji = "🤷‍♂️"  # Default emoji for unknown weather
+                    for condition, emoji in weather_emojis.items():
+                        if condition in weather:
+                            weather_emoji = emoji
+                            break
+                    message += f"- {item['time']}: {item['weather']} {weather_emoji}, {item['temperature']}{unit_symbol}\n"
                 message += "\n"
         elif LANGUAGE == 'it':
             message = f"Previsioni del tempo per i prossimi 5 giorni a {city}:\n\n"
             for day, data in forecast.items():
                 message += f"{day}\n"
                 for item in data:
-                    message += f"- {item['time']}: {item['weather']}, {item['temperature']}{unit_symbol}\n"
+                    weather = item['weather'].lower()
+                    weather_emoji = "🤷‍♂️"  # Default emoji for unknown weather
+                    for condition, emoji in weather_emojis.items():
+                        if condition in weather:
+                            weather_emoji = emoji
+                            break
+                    message += f"- {item['time']}: {item['weather']} {weather_emoji}, {item['temperature']}{unit_symbol}\n"
                 message += "\n"
         elif LANGUAGE == 'es':
             message = f"Pronóstico del tiempo para los próximos 5 días en {city}:\n\n"
             for day, data in forecast.items():
                 message += f"{day}\n"
                 for item in data:
-                    message += f"- {item['time']}: {item['weather']}, {item['temperature']}{unit_symbol}\n"
+                    weather = item['weather'].lower()
+                    weather_emoji = "🤷‍♂️"  # Default emoji for unknown weather
+                    for condition, emoji in weather_emojis.items():
+                        if condition in weather:
+                            weather_emoji = emoji
+                            break
+                    message += f"- {item['time']}: {item['weather']} {weather_emoji}, {item['temperature']}{unit_symbol}\n"
                 message += "\n"
 
         return message
     else:
         return f"City not found: {city}"
+
+
 
 def handle_command(message):
     """Handle commands received by the bot."""
@@ -258,14 +296,32 @@ def get_invalid_language_message():
         return "Opción no válida. Por favor, seleccione Inglés, Italiano o Español."
 
 def get_weather_for_city(message):
-    city = message.text
-    weather_message = get_weather(city)
+    location = message.text
+
+    # Check if the location is in the format of latitude, longitude
+    if ',' in location:
+        # Split the coordinates
+        latitude, longitude = map(float, location.split(','))
+        geolocator = Nominatim(user_agent="weather_bot")
+        location = geolocator.reverse((latitude, longitude)).address
+
+    weather_message = get_weather(location)
     bot.reply_to(message, weather_message)
 
+
 def get_forecast_for_city(message):
-    city = message.text
-    forecast_message = get_forecast(city)
+    location = message.text
+
+    # Check if the location is in the format of latitude, longitude
+    if ',' in location:
+        # Split the coordinates
+        latitude, longitude = map(float, location.split(','))
+        geolocator = Nominatim(user_agent="weather_bot")
+        location = geolocator.reverse((latitude, longitude)).address
+
+    forecast_message = get_forecast(location)
     bot.reply_to(message, forecast_message)
+
 
 bot = telebot.TeleBot(BOT_TOKEN)
 bot.set_webhook()
